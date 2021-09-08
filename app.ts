@@ -1,9 +1,9 @@
-interface Store  {
-  currentPage: number;
+interface Store {
   feeds: NewsFeed[];
+  currentPage: number;
 }
 
-interface News  {
+interface News {
   readonly id: number;
   readonly time_ago: string;
   readonly title: string;
@@ -12,38 +12,70 @@ interface News  {
   readonly content: string;
 }
 
-interface NewsFeed extends News{
-  readonly comments_count: number;
+interface NewsFeed extends News {
   readonly points: number;
+  readonly comments_count: number;
   read?: boolean;
 }
 
-interface NewsDetail  extends News{
+interface NewsDetail extends News {
   readonly comments: NewsComment[];
 }
 
-interface NewsComment extends News{
+interface NewsComment extends News {
   readonly comments: NewsComment[];
   readonly level: number;
 }
 
-const container : HTMLElement | null = document.getElementById("root");
-const ajax : XMLHttpRequest = new XMLHttpRequest();
-const NEWS_URL = "https://api.hnpwa.com/v0/news/1.json";
-const CONTENT_URL = "https://api.hnpwa.com/v0/item/@id.json";
-const store : Store = {
+const NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
+const CONTENT_URL = 'https://api.hnpwa.com/v0/item/@id.json';
+const container: HTMLElement | null = document.getElementById('root');
+const store: Store = {
   currentPage: 1,
   feeds: [],
 };
 
-function getData<AjaxResponse>(url: string): AjaxResponse {
-  ajax.open("GET", url, false);
-  ajax.send();
-
-  return JSON.parse(ajax.response);
+function applyApiMixins(targetClass: any, baseClasses: any[]): void {
+  baseClasses.forEach(baseClass => {
+    Object.getOwnPropertyNames(baseClass.prototype).forEach(name => {
+      const descriptor = Object.getOwnPropertyDescriptor(baseClass.prototype, name);
+      
+      if (descriptor) {
+        Object.defineProperty(targetClass.prototype, name, descriptor);
+      }            
+    });
+  });
 }
 
-function makeFeeds(feeds: NewsFeed[]): NewsFeed[] {
+class Api {
+  getRequest<AjaxResponse>(url: string): AjaxResponse {
+    const ajax = new XMLHttpRequest();
+    ajax.open('GET', url, false);
+    ajax.send();
+
+    return JSON.parse(ajax.response) as AjaxResponse;
+  }
+}
+
+class NewsFeedApi {
+  getData(url:string): NewsFeed[] {
+    return this.getRequest<NewsFeed[]>(url);
+  }
+}
+
+class NewsDetailApi {
+  getData(url:string): NewsDetail {
+    return this.getRequest<NewsDetail>(url);
+  }
+}
+
+interface NewsFeedApi extends Api {};
+interface NewsDetailApi extends Api {};
+
+applyApiMixins(NewsFeedApi, [Api]);
+applyApiMixins(NewsDetailApi, [Api]);
+
+function makeFeeds(feeds: NewsFeed[]):  NewsFeed[] {
   for (let i = 0; i < feeds.length; i++) {
     feeds[i].read = false;
   }
@@ -60,6 +92,7 @@ function updateView(html: string): void {
 }
 
 function newsFeed(): void {
+  let api = new NewsFeedApi()
   let newsFeed : NewsFeed[] = store.feeds;
   const newsList = [];
   let template = `
@@ -86,15 +119,15 @@ function newsFeed(): void {
       </div>
     </div>
   `;
-
+  
   if (newsFeed.length === 0) {
-    newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
+    newsFeed = store.feeds = makeFeeds(api.getData(NEWS_URL));
   }
 
   for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
     newsList.push(`
       <div class="p-6 ${
-        newsFeed[i].read ? "bg-red-500" : "bg-white"
+        newsFeed[i].read ? "bg-green-500" : "bg-white"
       } mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100">
         <div class="flex">
           <div class="flex-auto">
@@ -127,9 +160,33 @@ function newsFeed(): void {
   updateView(template);
 }
 
+function makeComment(comments: NewsComment[]): string {
+  const commentString = [];
+
+  for (let i = 0; i < comments.length; i++) {
+    const comment : NewsComment = comments[i]
+    commentString.push(`
+      <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
+        <div class="text-gray-400">
+          <i class="fa fa-sort-up mr-2"></i>
+          <strong>${comment.user}</strong> ${comment.time_ago}
+        </div>
+        <p class="text-gray-700">${comment.content}</p>
+      </div>      
+    `);
+
+    if (comment.comments.length > 0) {
+      commentString.push(makeComment(comment.comments));
+    }
+  }
+
+  return commentString.join("");
+}
+
 function newsDetail(): void {
   const id = location.hash.substr(7);
-  const newsContent: NewsDetail = getData(CONTENT_URL.replace("@id", id));
+  const api = new NewsDetailApi()
+  const newsContent: NewsDetail = api.getData(CONTENT_URL.replace("@id", id));
   let template = `
     <div class="bg-gray-600 min-h-screen pb-8">
       <div class="bg-white text-xl">
@@ -171,28 +228,6 @@ function newsDetail(): void {
     makeComment(newsContent.comments)))
 }
 
-function makeComment(comments: NewsComment[]): string {
-  const commentString = [];
-
-  for (let i = 0; i < comments.length; i++) {
-    const comment : NewsComment = comments[i]
-    commentString.push(`
-      <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
-        <div class="text-gray-400">
-          <i class="fa fa-sort-up mr-2"></i>
-          <strong>${comment.user}</strong> ${comment.time_ago}
-        </div>
-        <p class="text-gray-700">${comment.content}</p>
-      </div>      
-    `);
-
-    if (comment.comments.length > 0) {
-      commentString.push(makeComment(comment.comments));
-    }
-  }
-
-  return commentString.join("");
-}
 
 function router(): void {
   const routePath = location.hash;
