@@ -27,6 +27,11 @@ interface NewsComment extends News {
   readonly level: number;
 }
 
+interface RouteInfo {
+  path: string;
+  page: View;
+}
+
 const NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
 const CONTENT_URL = 'https://api.hnpwa.com/v0/item/@id.json';
 const store: Store = {
@@ -74,11 +79,11 @@ interface NewsDetailApi extends Api {};
 applyApiMixins(NewsFeedApi, [Api]);
 applyApiMixins(NewsDetailApi, [Api]);
 
-class View {
-  container: HTMLElement;
-  template: string;
-  renderTemplate: string;
-  htmlList: string[];
+abstract class View {
+  private container: HTMLElement;
+  private template: string;
+  private renderTemplate: string;
+  private htmlList: string[];
 
   constructor(containerId: string, template: string) {
     const containerEl = document.getElementById(containerId)
@@ -87,54 +92,75 @@ class View {
       throw '최상위 컨테이너가 없어 UI를 진행하지 못합니다.'
     }
 
+    this.container = containerEl;
     this.template = template
     this.renderTemplate = template
     this.htmlList = [];
-    this.container = containerEl;
   }
 
-  updateView(): void {
-    this.container.innerHTML = this.template;
+  protected updateView(): void {
+    this.container.innerHTML = this.renderTemplate;
+    this.renderTemplate = this.template
   }
 
-  addHtml(html: string): void {
+  protected addHtml(html: string): void {
     this.htmlList.push(html)
   }
 
-  getHtml(): string {
-    const snapShot = this.htmlList.join();
+  protected getHtml(): string {
+    const snapShot = this.htmlList.join('');
     this.clearHtmlList();
     return snapShot
   }
 
-  setTemplateData(key: string, value: string): void {
+  protected setTemplateData(key: string, value: string): void {
     this.renderTemplate = this.renderTemplate.replace(`{{__${key}__}}`, value)
   }
 
-  clearHtmlList(): void {
+  protected clearHtmlList(): void {
     this.htmlList = [];
   }
+
+  abstract render(): void;
 }
 
 class Router {
+  private routeTable: RouteInfo[];
+  private defaultRoute: RouteInfo | null;
+
   constructor() {
-    window.addEventListener("hashchange", router);
+    window.addEventListener("hashchange", this.route.bind(this));
+    
+    this.routeTable = [];
+    this.defaultRoute = null;
+  }
+  setDefaultPage(page: View): void {
+    this.defaultRoute = {path: '',page};
+  }
+
+  addRoutePath(path: string, page: View): void {
+    this.routeTable.push({path, page});
+  }
+
+  route() {
     const routePath = location.hash;
 
-    if (routePath === "") {
-      newsFeed();
-    } else if (routePath.indexOf("#/page/") >= 0) {
-      store.currentPage = Number(routePath.substr(7));
-      newsFeed();
-    } else {
-      newsDetail();
+    if(routePath === '' && this.defaultRoute) {
+      this.defaultRoute.page.render();
+    }
+
+    for (const routeInfo of this.routeTable) {
+      if(routePath.indexOf(routeInfo.path) >= 0) {
+        routeInfo.page.render();
+        break;
+      }
     }
   }
 }
 
 class NewsFeedView extends View {
-  api: NewsFeedApi;
-  feeds: NewsFeed[]
+  private api: NewsFeedApi;
+  private feeds: NewsFeed[]
   constructor(containerId: string) {
     let template = `
     <div class="bg-gray-600 min-h-screen">
@@ -160,20 +186,23 @@ class NewsFeedView extends View {
         </div>
       </div>
     `;
+
     super(containerId,template)
+
     this.api = new NewsFeedApi()
     this.feeds = store.feeds;
     
     if (this.feeds.length === 0) {
-      this.feeds = store.feeds = this.makeFeeds(this.api.getData(NEWS_URL));
+      this.feeds = store.feeds = this.api.getData(NEWS_URL);
+      this.makeFeeds();
     }    
   }
 
   render() {
-    const newsList = [];
+    store.currentPage = Number(location.hash.substr(7) || 1);
     for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
-      const {read,        id,        title,        comments_count,        user,        points,        time_ago} = this.feeds[i]
-      newsList.push(`
+      const { id, title, comments_count, user, points, time_ago, read } = this.feeds[i];
+      this.addHtml(`
         <div class="p-6 ${
           read ? "bg-green-500" : "bg-white"
         } mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100">
@@ -200,17 +229,15 @@ class NewsFeedView extends View {
 
     this.setTemplateData("news_feed", this.getHtml());
     this.setTemplateData("prev_page",String(store.currentPage > 1 ? store.currentPage - 1 : 1));
-    this.setTemplateData("{{__next_page__}}", String(store.currentPage + 1));
+    this.setTemplateData("next_page", String(store.currentPage + 1));
 
     this.updateView();
   }
 
-  makeFeeds(feeds: NewsFeed[]):  NewsFeed[] {
-    for (let i = 0; i < feeds.length; i++) {
-      feeds[i].read = false;
+  private makeFeeds():  void {
+    for (let i = 0; i < this.feeds.length; i++) {
+      this.feeds[i].read = false;
     }
-  
-    return feeds;
   }
 }
 
@@ -267,11 +294,9 @@ class NewsDetailView extends View {
   }
 
   makeComment(comments: NewsComment[]): string {
-    const commentString = [];
-  
     for (let i = 0; i < comments.length; i++) {
       const comment : NewsComment = comments[i]
-      commentString.push(`
+      this.addHtml(`
         <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
           <div class="text-gray-400">
             <i class="fa fa-sort-up mr-2"></i>
@@ -282,20 +307,22 @@ class NewsDetailView extends View {
       `);
   
       if (comment.comments.length > 0) {
-        commentString.push(this.makeComment(comment.comments));
+        this.addHtml(this.makeComment(comment.comments));
       }
     }
   
-    return commentString.join("");
+    return this.getHtml();
   }
 }
 
 const router: Router = new Router();
-const newFeedView: NewsFeedView = new NewsFeedView('root');
-const newDetailView: NewsDetailView = new NewsDetailView('root');
+const newsFeedView: NewsFeedView = new NewsFeedView('root');
+const newsDetailView: NewsDetailView = new NewsDetailView('root');
 
-router.setDefaultPage(newFeedView);
+router.setDefaultPage(newsFeedView);
 
-router.addRoutePath('/page/', newFeedView);
-router.addRoutePath('/show/', newDetailView);
+router.addRoutePath('/page/', newsFeedView);
+router.addRoutePath('/show/', newsDetailView);
+
+router.route();
 
