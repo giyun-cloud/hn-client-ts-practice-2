@@ -1,10 +1,11 @@
 import { CONTENT_URL } from "../config";
 import { NewsDetailApi } from "../core/api";
 import View from "../core/view";
+import Store from "../store";
 import { NewsComment, NewsDetail } from "../types";
 
 export default class NewsDetailView extends View {
-  constructor(containerId: string) {
+  constructor(containerId: string, store: Store) {
     let template = `
       <div class="bg-gray-600 min-h-screen pb-8">
         <div class="bg-white text-xl">

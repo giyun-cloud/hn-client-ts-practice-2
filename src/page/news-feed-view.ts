@@ -1,12 +1,13 @@
 import { NEWS_URL } from "../config";
 import { NewsFeedApi } from "../core/api";
 import View from "../core/view";
+import Store from "../store";
 import { NewsFeed } from "../types";
 
 export default class NewsFeedView extends View {
   private api: NewsFeedApi;
   private feeds: NewsFeed[]
-  constructor(containerId: string) {
+  constructor(containerId: string, store: Store) {
     let template = `
     <div class="bg-gray-600 min-h-screen">
     <div class="bg-white text-xl">
