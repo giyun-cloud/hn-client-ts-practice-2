@@ -1,57 +1,55 @@
 import { CONTENT_URL } from "../config";
 import { NewsDetailApi } from "../core/api";
 import View from "../core/view";
-import Store from "../store";
-import { NewsComment, NewsDetail } from "../types";
+import { NewsComment, NewsDetail, NewsStore } from "../types";
 
-export default class NewsDetailView extends View {
-  constructor(containerId: string, store: Store) {
-    let template = `
-      <div class="bg-gray-600 min-h-screen pb-8">
-        <div class="bg-white text-xl">
-          <div class="mx-auto px-4">
-            <div class="flex justify-between items-center py-6">
-              <div class="flex justify-start">
-                <h1 class="font-extrabold">Hacker News</h1>
-              </div>
-              <div class="items-center justify-end">
-                <a href="#/page/{{__current_page__}}" class="text-gray-500">
-                  <i class="fa fa-times"></i>
-                </a>
-              </div>
-            </div>
+let template = `
+  <div class="bg-gray-600 min-h-screen pb-8">
+    <div class="bg-white text-xl">
+      <div class="mx-auto px-4">
+        <div class="flex justify-between items-center py-6">
+          <div class="flex justify-start">
+            <h1 class="font-extrabold">Hacker News</h1>
           </div>
-        </div>
-
-        <div class="h-full border rounded-xl bg-white m-6 p-4 ">
-          <h2>{{__title__}}</h2>
-          <div class="text-gray-400 h-20">
-            {{__content__}}
+          <div class="items-center justify-end">
+            <a href="#/page/{{__current_page__}}" class="text-gray-500">
+              <i class="fa fa-times"></i>
+            </a>
           </div>
-
-          {{__comments__}}
-
         </div>
       </div>
-    `; 
-    super(containerId,template)  
+    </div>
+
+    <div class="h-full border rounded-xl bg-white m-6 p-4 ">
+      <h2>{{__title__}}</h2>
+      <div class="text-gray-400 h-20">
+        {{__content__}}
+      </div>
+
+      {{__comments__}}
+
+    </div>
+  </div>
+`; 
+
+export default class NewsDetailView extends View {
+  private store: NewsStore;
+  constructor(containerId: string, store: NewsStore) {
+    super(containerId,template);
+    this.store = store
   }
 
   render() {
+    console.log("detail 랜더실행")
     const id = location.hash.substr(7);
     const api = new NewsDetailApi()
     const newsContent: NewsDetail = api.getData(CONTENT_URL.replace("@id", id));
-    for (let i = 0; i < window.store.feeds.length; i++) {
-      if (window.store.feeds[i].id === Number(id)) {
-        window.store.feeds[i].read = true;
-        break;
-      }
-    }
+    this.store.makeRead(Number(id));
 
     this.setTemplateData("comments",this.makeComment(newsContent.comments))
     this.setTemplateData("content",newsContent.content)
     this.setTemplateData("title",newsContent.title)
-    this.setTemplateData("current_page",String(window.store.currentPage))
+    this.setTemplateData("current_page",String(this.store.currentPage))
     
     this.updateView()
   }

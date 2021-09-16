@@ -1,6 +1,6 @@
-import { NewsFeed } from "./types";
+import { NewsFeed, NewsStore } from "./types";
 
-export default class Store {
+export class Store implements NewsStore {
   feeds: NewsFeed[];
   _currentPage: number;
 
@@ -41,7 +41,7 @@ export default class Store {
     return this.feeds[position]
   }
 
-  sefFeeds(feeds: NewsFeed[]): void {
+  setFeeds(feeds: NewsFeed[]): void {
     this.feeds = feeds.map(feed => ({
       ...feed,
       read: false,

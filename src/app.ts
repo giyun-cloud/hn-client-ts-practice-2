@@ -1,8 +1,8 @@
 import Router from "./core/router";
 import { NewsDetailView, NewsFeedView } from "./page";
-import Store from "./store";
+import {Store} from "./store";
 
-const store = new Store
+const store = new Store();
 
 const router: Router = new Router();
 const newsFeedView: NewsFeedView = new NewsFeedView('root', store);
