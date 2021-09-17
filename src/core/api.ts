@@ -14,24 +14,25 @@ function applyApiMixins(targetClass: any, baseClasses: any[]): void {
 }
 
 class Api {
-  getRequest<AjaxResponse>(url: string): AjaxResponse {
+  getRequest<AjaxResponse>(url: string, cb: (data:AjaxResponse) => void ): void {
     const ajax = new XMLHttpRequest();
-    ajax.open('GET', url, false);
+    ajax.open('GET', url);
+    ajax.addEventListener('load', () => {
+      cb(JSON.parse(ajax.response) as AjaxResponse);
+    })
     ajax.send();
-
-    return JSON.parse(ajax.response) as AjaxResponse;
   }
 }
 
 export class NewsFeedApi {
-  getData(url:string): NewsFeed[] {
-    return this.getRequest<NewsFeed[]>(url);
+  getData(url:string, cb: (data:NewsFeed[]) => void): void {
+    this.getRequest<NewsFeed[]>(url,cb);
   }
 }
 
 export class NewsDetailApi {
-  getData(url:string): NewsDetail {
-    return this.getRequest<NewsDetail>(url);
+  getData(url:string, cb: (data:NewsDetail) => void): void {
+    this.getRequest<NewsDetail>(url,cb);
   }
 }
 
