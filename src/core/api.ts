@@ -22,17 +22,24 @@ class Api {
     })
     ajax.send();
   }
+
+  getRequestWithFetch<AjaxResponse>(url: string, cb: (data:AjaxResponse) => void ): void {
+    fetch(url)
+      .then(res => res.json())
+      .then(cb)
+      .catch(() => {console.error("데이터를 불러오지 못했습니다.")})
+  }
 }
 
 export class NewsFeedApi {
   getData(url:string, cb: (data:NewsFeed[]) => void): void {
-    this.getRequest<NewsFeed[]>(url,cb);
+    this.getRequestWithFetch<NewsFeed[]>(url,cb);
   }
 }
 
 export class NewsDetailApi {
   getData(url:string, cb: (data:NewsDetail) => void): void {
-    this.getRequest<NewsDetail>(url,cb);
+    this.getRequestWithFetch<NewsDetail>(url,cb);
   }
 }
 
