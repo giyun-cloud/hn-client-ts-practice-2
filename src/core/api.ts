@@ -1,50 +1,36 @@
 import { NewsDetail, NewsFeed } from "../types";
 
-
-function applyApiMixins(targetClass: any, baseClasses: any[]): void {
-  baseClasses.forEach(baseClass => {
-    Object.getOwnPropertyNames(baseClass.prototype).forEach(name => {
-      const descriptor = Object.getOwnPropertyDescriptor(baseClass.prototype, name);
-      
-      if (descriptor) {
-        Object.defineProperty(targetClass.prototype, name, descriptor);
-      }            
-    });
-  });
-}
-
 class Api {
-  getRequest<AjaxResponse>(url: string, cb: (data:AjaxResponse) => void ): void {
-    const ajax = new XMLHttpRequest();
-    ajax.open('GET', url);
-    ajax.addEventListener('load', () => {
-      cb(JSON.parse(ajax.response) as AjaxResponse);
-    })
-    ajax.send();
+  url: string;
+  ajax: XMLHttpRequest;
+
+  constructor(url: string) {
+    this.url = url
+    this.ajax = new XMLHttpRequest();
   }
 
-  getRequestWithFetch<AjaxResponse>(url: string, cb: (data:AjaxResponse) => void ): void {
-    fetch(url)
-      .then(res => res.json())
-      .then(cb)
-      .catch(() => {console.error("데이터를 불러오지 못했습니다.")})
+  async getRequest<AjaxResponse>(): Promise<AjaxResponse> {
+    const response = await fetch(this.url)
+    return await response.json()
   }
 }
 
-export class NewsFeedApi {
-  getData(url:string, cb: (data:NewsFeed[]) => void): void {
-    this.getRequestWithFetch<NewsFeed[]>(url,cb);
+export class NewsFeedApi extends Api {
+  constructor(url: string) {
+    super(url);
+  }
+
+  getData(): Promise<NewsFeed[]> {
+    return this.getRequest<NewsFeed[]>();
   }
 }
 
-export class NewsDetailApi {
-  getData(url:string, cb: (data:NewsDetail) => void): void {
-    this.getRequestWithFetch<NewsDetail>(url,cb);
+export class NewsDetailApi extends Api {
+  constructor(url: string) {
+    super(url);
+  }
+
+  getData(): Promise<NewsDetail> {
+    return this.getRequest<NewsDetail>();
   }
 }
-
-export interface NewsFeedApi extends Api {};
-export interface NewsDetailApi extends Api {};
-
-applyApiMixins(NewsFeedApi, [Api]);
-applyApiMixins(NewsDetailApi, [Api]);

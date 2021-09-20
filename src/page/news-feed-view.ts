@@ -34,23 +34,16 @@ export default class NewsFeedView extends View {
   constructor(containerId: string, store: NewsStore) {
     super(containerId,template)
 
-    this.api = new NewsFeedApi()
+    this.api = new NewsFeedApi(NEWS_URL)
     this.store = store
     
   }
   
-  render() {
+  async render() {
     this.store.currentPage = Number(location.hash.substr(7) || 1);
     if (this.store.numberOfFeeds === 0) {
-      this.api.getData(NEWS_URL,(feeds: NewsFeed[]) => {
-        this.store.setFeeds(feeds);
-        this.renderView();
-      })
-    }    
-    this.renderView();
-  }
-  
-  renderView() {
+        this.store.setFeeds(await this.api.getData())
+      }
     for (let i = (this.store.currentPage - 1) * 10; i < this.store.currentPage * 10; i++) {
       const { id, title, comments_count, user, points, time_ago, read } = this.store.getFeed(i);
       this.addHtml(`
@@ -77,12 +70,10 @@ export default class NewsFeedView extends View {
         </div>    
       `);
     }
-  
     this.setTemplateData("news_feed", this.getHtml());
     this.setTemplateData("prev_page", String(this.store.prevPage));
     this.setTemplateData("next_page", String(this.store.nextPage));
   
     this.updateView();
-
   }
 }
