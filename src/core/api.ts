@@ -20,7 +20,7 @@ export class NewsFeedApi extends Api {
     super(url);
   }
 
-  getData(): Promise<NewsFeed[]> {
+  async getData(): Promise<NewsFeed[]> {
     return this.getRequest<NewsFeed[]>();
   }
 }
@@ -30,7 +30,7 @@ export class NewsDetailApi extends Api {
     super(url);
   }
 
-  getData(): Promise<NewsDetail> {
+  async getData(): Promise<NewsDetail> {
     return this.getRequest<NewsDetail>();
   }
 }
